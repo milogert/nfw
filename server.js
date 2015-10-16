@@ -5,13 +5,16 @@ var url = require("url");
 
 // Server variable.
 var server = undefined;
+var fallbackToStatic = undefined;
 
 // Dynamic, user-generated urls.
 var dynamicurls = {};
 
 module.exports = {
   // Instantiates the server.
-  create: function() {
+  create: function(fallbackToStatic) {
+    fallbackToStatic = typeof fallbackToStatic !== "undefined" ? fallbackToStatic : false;
+
     console.log("Creating the server.");
 
     server = http.createServer(function(request, response) {
@@ -30,26 +33,39 @@ module.exports = {
         response.write(resp[2]);
         response.end();
       } else {
-        if (p.indexOf("/") === 0) p = "." + p;
+        if (fallbackToStatic) {
+          // Fallback to static files. This is kinda weird.
+          if (p.indexOf("/") === 0) p = "." + p;
+
+          console.log("Fetching static file: " + p);
 
 
-        // Fallback to static.
-        fs.exists(p, function(exists) {
-          // Read the proper file in, but only if it exists.
-          if (exists) {
-            fs.readFile(path.join(__dirname, p), {encoding: "UTF-8"}, function(err, data) {
-              response.writeHead(200, {"Content-Type": "text/html"});
-              response.write(data);
+          // Fallback to static.
+          fs.exists(p, function(exists) {
+            // Read the proper file in, but only if it exists.
+            if (exists) {
+              fs.readFile(path.join(__dirname, p), {encoding: "UTF-8"}, function(err, data) {
+                response.writeHead(200, {"Content-Type": "text/html"});
+                response.write(data);
+                response.end();
+              });
+            } else {
+              console.log("failed to find " + p);
+              response.writeHead(404, {"Content-Type": "text/plain"});
+              response.write("404 Not Found\n");
+              response.write(p + "\n");
               response.end();
-            });
-          } else {
-            console.log("failed to find " + p);
-            response.writeHead(404, {"Content-Type": "text/plain"});
-            response.write("404 Not Found\n");
-            response.write(p + "\n");
-            response.end();
-          }
-        });
+            }
+          });
+        } else {
+          console.log("Actually returning 404.");
+
+          // Respond with a 404.
+          response.writeHead(404, {"Content-Type": "text/plain"});
+          response.write("404 Not Found\n");
+          response.write(p + "\n");
+          response.end();
+        }
       }
     });
   },
