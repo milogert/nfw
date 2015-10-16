@@ -30,7 +30,7 @@ module.exports = {
         response.write(resp[2]);
         response.end();
       } else {
-        if (p.indexOf("/") === 0) p = p.substr(1);
+        if (p.indexOf("/") === 0) p = "." + p;
 
 
         // Fallback to static.
