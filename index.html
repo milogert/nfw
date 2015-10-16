@@ -1,0 +1,22 @@
+<html>
+  <head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+  </head>
+  <body>
+    <p>index.html</p>
+
+    <input type="button" value="Make an ajax call" onclick="a();">
+    <input type="text" class="holder">
+  </body>
+  
+  <script>
+    function a() {
+      jQuery.ajax({
+        url: "/ajax"
+      }).done(function(data) {
+        $(".holder").val(data);
+      });
+    }
+  </script>
+</html>
+
