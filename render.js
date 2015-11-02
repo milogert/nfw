@@ -1,3 +1,5 @@
+var fs = require("fs");
+
 // Config options.
 var config = {
   "usetemplates": false,
