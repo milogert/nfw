@@ -12,8 +12,8 @@ var dynamicurls = {};
 
 // Config options.
 var config = {
-  'usestatic': true,
-  'static': '/static',
+  usestatic: true,
+  static: '/static',
 }
 
 // Instantiates the server.
@@ -65,11 +65,15 @@ var create = function() {
       // call the function.
       if (urlobj.methods.indexOf(request.method) < 0) {
         resp = codes.notAllowed("method not allowed");
-      } else {
-        console.log(request.method + " " + request.url);
+        finishRequest(response, resp);
+      }
 
-        if (request.method == "GET") {
-          // Get the arguments.
+      // I guess we are allowing the method. Lets keep going.
+      console.log(request.method + " " + request.url);
+
+      switch (request.method) {
+        case "GET":
+          // Get the arguments arguments in the url.
           var args = url.parse(request.url, true).query;
 
           // If match is null, which means the target was a string, don't
@@ -81,7 +85,8 @@ var create = function() {
           }
 
           finishRequest(response, resp);
-        } else if (request.method == "POST") {
+          break;
+        case "POST":
           var body = "";
           request
             .on("data", function onData(data) {
@@ -97,7 +102,9 @@ var create = function() {
               // Send the post back.
               urlobj.callback(aPost);
             });
-        }
+          break;
+        default:
+          finishRequest(response, codes.notAllowed('What happened?'));
       }
     }
   });
