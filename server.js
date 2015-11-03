@@ -19,7 +19,7 @@ var config = {
 // Instantiates the server.
 var create = function() {
   // Method to write out the response.
-  var finishRequest = function(response, data) {
+  var finishRequest = function(response, resp) {
     response.writeHead(resp[0], resp[1]);
     response.write(resp[2]);
     response.end();
