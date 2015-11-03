@@ -12,25 +12,30 @@ var dynamicurls = {};
 
 // Config options.
 var config = {
-  "usestatic": true,
-  "static": "/static",
+  'usestatic': true,
+  'static': '/static',
 }
 
 // Instantiates the server.
 var create = function() {
-  console.log("Creating the server.");
+  // Method to write out the response.
+  var finishRequest = function(response, data) {
+    response.writeHead(resp[0], resp[1]);
+    response.write(resp[2]);
+    response.end();
+  }
 
-  server = http.createServer(function(request, response) {
+  console.log('Creating the server.');
+
+  server = http.createServer(function handleRequest(request, response) {
     // Get the url path.
-    var path = url.parse(request.url, true)["pathname"];
+    var path = url.parse(request.url, true)['pathname'];
     var match = undefined;
     var urlobj = undefined;
 
-    // Find the callback in the object.
+    // Find the callback and methods in the object.
     for (var key in dynamicurls) {
-      debugger;
-      // TODO matching for getting regex from dynamic urls.
-      match = path.match(new RegExp("^" + key));
+      match = path.match(new RegExp('^' + key));
       if (match) {
         urlobj = dynamicurls[key];
         break;
@@ -38,55 +43,60 @@ var create = function() {
     }
 
     // Set up a response array. Not found is default.
-    var resp = codes.error("Not Found.");
+    var resp = codes.error('Not Found.');
 
-    if (urlobj == undefined && config["usestatic"] && path.indexOf(config["static"]) == 0) {
+    var isUsingStatic = (
+      urlobj === 'undefined' &&
+      config['usestatic'] &&
+      path.indexOf(config['static']) === 0
+    );
+    if (isUsingStatic) {
       // Check to make sure the file even exists.
       if (fs.existsSync("." + path)) {
         console.log("GET " + path);
         resp = codes.success(fs.readFileSync("." + path));
+        finishRequest(response, resp);
       }
     }
 
     // Check for the route and function in the dynamic urls.
     if (urlobj != undefined && urlobj.callback != undefined) {
-      // Check for the method. If it's now in the list, say so, otherwise call the function.
+      // Check for the method. If it's now in the list, say so, otherwise
+      // call the function.
       if (urlobj.methods.indexOf(request.method) < 0) {
-        resp = codes.notallowed("method not allowed");
+        resp = codes.notAllowed("method not allowed");
       } else {
         console.log(request.method + " " + request.url);
 
-        // Check method.
         if (request.method == "GET") {
           // Get the arguments.
           var args = url.parse(request.url, true).query;
 
-          // If match is null, which means the target was a string, don't pass it in.
-          if (match)
+          // If match is null, which means the target was a string, don't
+          // pass it in.
+          if (match) {
             resp = urlobj.callback(match, args);
-          else
+          } else {
             resp = urlobj.callback(args);
+          }
 
-          // Fill the response with the returned data.
-          response.writeHead(resp[0], resp[1]);
-          response.write(resp[2]);
-          response.end();
+          finishRequest(response, resp);
         } else if (request.method == "POST") {
           var body = "";
-          request.on("data", function(data) {
-            body += data;
+          request
+            .on("data", function onData(data) {
+              body += data;
 
-            // Check for attack or faulty client.
-            if (body.length > 1e6)
-              request.connection.destroy();
-          });
+              // Check for attack or faulty client.
+              if (body.length > 1e6)
+                request.connection.destroy();
+            })
+            .on("end", function onEnd() {
+              var aPost = qs.parse(body);
 
-          request.on("end", function() {
-            var aPost = qs.parse(body);
-
-            // Send the post back.
-            urlobj.callback(aPost);
-          });
+              // Send the post back.
+              urlobj.callback(aPost);
+            });
         }
       }
     }
@@ -116,20 +126,25 @@ var start = function(port, ip) {
 // Registers a url with a callback function.
 var register = function(url, callback, methods) {
   // Set the default methods.
-  if (typeof methods == "undefined") methods = [ "GET" ];
+  if (typeof methods == 'undefined') methods = [ 'GET' ];
 
   dynamicurls[url] = {
-    "callback": callback,
-    "methods": methods
+    callback: callback,
+    methods: methods
   };
 }
 
 // Server status returns.
 var codes = {
-  // TODO: Add some nice detection for which type to return.
-  success: function(data) { return [200, {"Content-Type": "text/html"}, data]; },
-  error:   function(data) { return [404, {"Content-Type": "text/plain"}, data]; },
-  notallowed:   function(data) { return [405, {"Content-Type": "text/plain"}, data]; }
+  success: function success(data) {
+    return [200, {'Content-Type': 'text/html'}, data];
+  },
+  error: function error(data) {
+    return [404, {'Content-Type': 'text/plain'}, data];
+  },
+  notAllowed: function notAllowed(data) {
+    return [405, {'Content-Type': 'text/plain'}, data];
+  }
 }
 
 // Export the module.
