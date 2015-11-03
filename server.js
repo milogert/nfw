@@ -30,7 +30,7 @@ var create = function() {
     for (var key in dynamicurls) {
       debugger;
       // TODO matching for getting regex from dynamic urls.
-      match = path.match(key);
+      match = path.match(new RegExp("^" + key));
       if (match) {
         urlobj = dynamicurls[key];
         break;
@@ -63,9 +63,9 @@ var create = function() {
 
           // If match is null, which means the target was a string, don't pass it in.
           if (match)
-            resp = urlobj.callback(args);
-          else
             resp = urlobj.callback(match, args);
+          else
+            resp = urlobj.callback(args);
 
           // Fill the response with the returned data.
           response.writeHead(resp[0], resp[1]);

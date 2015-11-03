@@ -31,7 +31,7 @@ server.register("/args", function(args) {
   return server.codes.success("This is a simple return: " + args.a + " " + args.b);
 });
 
-server.register(/\/regex\/\w+\/\d+/, function(matches) {
+server.register("/regex/([a-z]+)/([0-9]+)", function(matches) {
   return server.codes.success("Get some regex in the url: " + matches[1] + " " + matches[2]);
 });
 
