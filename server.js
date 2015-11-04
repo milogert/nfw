@@ -30,8 +30,8 @@ var create = function() {
   server = http.createServer(function handleRequest(request, response) {
     // Get the url path.
     var path = url.parse(request.url, true)['pathname'];
-    var match = undefined;
-    var urlobj = undefined;
+    var match;
+    var urlobj;
 
     // Find the callback and methods in the object.
     for (var key in dynamicurls) {
@@ -45,22 +45,26 @@ var create = function() {
     // Set up a response array. Not found is default.
     var resp = codes.error('Not Found.');
 
-    var isUsingStatic = (
-      urlobj === 'undefined' &&
-      config['usestatic'] &&
-      path.indexOf(config['static']) === 0
+    // Set some booleans to see what we are gonna do for this request.
+    var tryingStatic = (
+      !urlobj &&
+      config.usestatic &&
+      path.indexOf(config.static) === 0
     );
-    if (isUsingStatic) {
+    var tryingDynamic = !!urlobj;
+    
+    if (tryingStatic && !tryingDynamic) {
       // Check to make sure the file even exists.
-      if (fs.existsSync("." + path)) {
+      fs.readFile("." + path, function exists(err, data) {
+        if (err) finishRequest(response, resp);
+
         console.log("GET " + path);
-        resp = codes.success(fs.readFileSync("." + path));
-        finishRequest(response, resp);
-      }
+        finishRequest(response, codes.success(data));
+      });
     }
 
     // Check for the route and function in the dynamic urls.
-    if (urlobj != undefined && urlobj.callback != undefined) {
+    if (!tryingStatic && tryingDynamic) {
       // Check for the method. If it's now in the list, say so, otherwise
       // call the function.
       if (urlobj.methods.indexOf(request.method) < 0) {
@@ -76,15 +80,20 @@ var create = function() {
           // Get the arguments arguments in the url.
           var args = url.parse(request.url, true).query;
 
+          // Create a dynamic callback function. This gets passed into
+          // all the registered functions and allows us to use async
+          // callbacks to make requests.
+          var genericCallback = function(data) {
+            finishRequest(response, data);
+          }
+
           // If match is null, which means the target was a string, don't
           // pass it in.
           if (match) {
-            resp = urlobj.callback(match, args);
+            urlobj.callback(genericCallback, match, args);
           } else {
-            resp = urlobj.callback(args);
+            urlobj.callback(genericCallback, args);
           }
-
-          finishRequest(response, resp);
           break;
         case "POST":
           var body = "";
@@ -96,7 +105,7 @@ var create = function() {
               if (body.length > 1e6)
                 request.connection.destroy();
             })
-            .on("end", function onEnd() {
+            .on('end', function onEnd() {
               var aPost = qs.parse(body);
 
               // Send the post back.
@@ -132,8 +141,9 @@ var start = function(port, ip) {
 
 // Registers a url with a callback function.
 var register = function(url, callback, methods) {
-  // Set the default methods.
-  if (typeof methods == 'undefined') methods = [ 'GET' ];
+  // Set the defaults.
+  if (typeof callback === 'undefined') callback = function empty() {};
+  if (typeof methods === 'undefined') methods = [ 'GET' ];
 
   dynamicurls[url] = {
     callback: callback,
